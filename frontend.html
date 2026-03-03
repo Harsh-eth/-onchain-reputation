@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>OnChain Reputation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #131314;
+      --surface: #1E1F20;
+      --surface-hover: #333537;
+      --primary: #A8C7FA;
+      --on-primary: #062E6F;
+      --danger: #F2B8B5;
+      --on-danger: #601410;
+      --text-primary: #E3E3E3;
+      --text-secondary: #C4C7C5;
+      --outline: #444746;
+      --outline-variant: #44474680;
+      --success: #C4EED0;
+      --on-success: #072711;
+      
+      --font-family: 'Google Sans', system-ui, -apple-system, sans-serif;
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --radius-pill: 100px;
+      --transition: 0.2s cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: var(--font-family);
+      background-color: var(--bg);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 24px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+
+    .title-group h1 {
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .title-group p {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface);
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--outline-variant);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #E2726E; 
+    }
+
+    .status-dot.connected {
+      background: #81C995; 
+    }
+
+    .section {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      border: 1px solid var(--outline-variant);
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 500px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .data-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .data-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .data-value {
+      font-size: 15px;
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .mono {
+      font-family: 'Roboto Mono', ui-monospace, monospace;
+      font-size: 14px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-family);
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      outline: none;
+      cursor: pointer;
+      padding: 10px 24px;
+      border-radius: var(--radius-pill);
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: var(--on-primary);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: #BBD6FB;
+    }
+
+    .btn-secondary {
+      background-color: var(--outline);
+      color: var(--text-primary);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #535756;
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: var(--on-danger);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background-color: #F6C8C6;
+    }
+
+    .btn-text {
+      background: transparent;
+      color: var(--primary);
+      padding: 8px 16px;
+    }
+
+    .btn-text:hover:not(:disabled) {
+      background: rgba(168, 199, 250, 0.08);
+    }
+
+    .actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--outline-variant);
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 500;
+      background: var(--outline);
+      color: var(--text-primary);
+    }
+
+    .pill-active {
+      background: var(--success);
+      color: var(--on-success);
+    }
+
+    .pill-inactive {
+      background: var(--outline);
+      color: var(--text-secondary);
+    }
+
+    .alert {
+      padding: 16px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--outline-variant);
+      margin-top: 16px;
+    }
+
+    .alert-success {
+      background: rgba(196, 238, 208, 0.1);
+      border-color: rgba(196, 238, 208, 0.2);
+      color: var(--success);
+    }
+
+    .alert-error {
+      background: rgba(242, 184, 181, 0.1);
+      border-color: rgba(242, 184, 181, 0.2);
+      color: var(--danger);
+    }
+
+    .alert-info {
+      background: rgba(168, 199, 250, 0.1);
+      border-color: rgba(168, 199, 250, 0.2);
+      color: var(--primary);
+    }
+
+    .contract-info {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="header">
+      <div class="title-group">
+        <h1>On-Chain Reputation</h1>
+        <p>Manage your decentralized profile</p>
+      </div>
+      <div class="status-badge">
+        <div id="status-indicator" class="status-dot"></div>
+        <span id="connection-label">Disconnected</span>
+      </div>
+    </header>
+
+    <div class="section">
+      <div class="section-title">Wallet Details</div>
+      <div class="grid-2">
+        <div class="data-item">
+          <span class="data-label">Address</span>
+          <span id="wallet-address" class="data-value mono" style="color: var(--text-secondary);">—</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Network</span>
+          <span id="network-name" class="data-value" style="color: var(--text-secondary);">—</span>
+        </div>
+      </div>
+      <div class="actions-row" style="margin-top: 16px; padding-top: 16px;">
+        <button id="connect-btn" class="btn btn-primary" type="button">Connect Wallet</button>
+        <button id="disconnect-btn" class="btn btn-secondary" type="button" style="display:none;">Disconnect</button>
+        <button id="copy-btn" class="btn btn-text" type="button" disabled>Copy Address</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Reputation Profile</div>
+      <div class="grid-2">
+        <div class="data-item">
+          <span class="data-label">Status</span>
+          <div style="margin-top: 4px;">
+            <span id="registration-status" class="pill pill-inactive">Unregistered</span>
+            <span id="active-status" class="pill pill-inactive" style="margin-left: 4px;">Inactive</span>
+          </div>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Reputation Points</span>
+          <span id="points-number" class="data-value" style="font-size: 24px; font-weight: 500;">0</span>
+        </div>
+        <div class="data-item">
+          <span class="data-label">Tier Level</span>
+          <span id="tier-label" class="data-value">—</span>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button id="register-btn" class="btn btn-secondary" type="button" disabled>Register</button>
+        <button id="earn-btn" class="btn btn-primary" type="button" disabled>Earn Points</button>
+        <button id="activate-btn" class="btn btn-secondary" type="button" disabled>Activate</button>
+        <button id="deactivate-btn" class="btn btn-danger" type="button" disabled>Deactivate</button>
+      </div>
+    </div>
+
+    <div id="message" class="alert alert-info" style="display:none;">
+      <span id="message-text"></span>
+    </div>
+
+    <div class="contract-info">
+      Contract: <span id="contract-address" class="mono"></span>
+    </div>
+
+  </div>
+
+  <script>
+    const CONTRACT_ADDRESS = "0xD30454AD4d2b4871B0a339755DB44A8aEAfdC8Bf";
+
+    const CONTRACT_ABI = [
+      "function register()",
+      "function activate()",
+      "function deactivate()",
+      "function earnPoints()",
+      "function getUser(address account) view returns (bool isRegistered, bool isActive, uint256 points, uint8 tier)",
+      "function getMyPoints() view returns (uint256)",
+      "function getUserTier() view returns (uint8)"
+    ];
+
+    let provider = null;
+    let signer = null;
+    let contract = null;
+    let currentAccount = null;
+    let isLoading = false;
+
+    const connectBtn = document.getElementById("connect-btn");
+    const disconnectBtn = document.getElementById("disconnect-btn");
+    const copyBtn = document.getElementById("copy-btn");
+
+    const statusIndicator = document.getElementById("status-indicator");
+    const connectionLabel = document.getElementById("connection-label");
+
+    const walletAddressEl = document.getElementById("wallet-address");
+    const networkNameEl = document.getElementById("network-name");
+    const contractAddressEl = document.getElementById("contract-address");
+
+    const registrationStatusEl = document.getElementById("registration-status");
+    const activeStatusEl = document.getElementById("active-status");
+    const pointsNumberEl = document.getElementById("points-number");
+    const tierLabelEl = document.getElementById("tier-label");
+
+    const registerBtn = document.getElementById("register-btn");
+    const activateBtn = document.getElementById("activate-btn");
+    const deactivateBtn = document.getElementById("deactivate-btn");
+    const earnBtn = document.getElementById("earn-btn");
+
+    const messageBox = document.getElementById("message");
+    const messageText = document.getElementById("message-text");
+
+    contractAddressEl.textContent = CONTRACT_ADDRESS;
+
+    function shortenAddress(addr) {
+      if (!addr) return "—";
+      return addr.slice(0, 6) + "..." + addr.slice(-4);
+    }
+
+    function tierToLabel(tier) {
+      const t = Number(tier);
+      if (t === 0) return "Starter";
+      if (t === 1) return "Bronze";
+      if (t === 2) return "Silver";
+      if (t === 3) return "Gold";
+      if (t === 4) return "Platinum";
+      return `Tier ${t}`;
+    }
+
+    function setMessage(type, text) {
+      if (!text) {
+        messageBox.style.display = "none";
+        return;
+      }
+      messageBox.className = "alert";
+      if (type === "success") {
+        messageBox.classList.add("alert-success");
+      } else if (type === "error") {
+        messageBox.classList.add("alert-error");
+      } else {
+        messageBox.classList.add("alert-info");
+      }
+      messageText.textContent = text;
+      messageBox.style.display = "flex";
+    }
+
+    function setLoading(loading, message) {
+      isLoading = loading;
+      const buttons = [connectBtn, registerBtn, activateBtn, deactivateBtn, earnBtn];
+      
+      buttons.forEach(btn => {
+        if (!btn) return;
+        if (loading) {
+          btn.dataset.prevDisabled = btn.disabled ? "1" : "";
+          btn.disabled = true;
+        } else if (btn.dataset.prevDisabled !== "1") {
+          btn.disabled = false;
+        }
+      });
+
+      if (loading) {
+        setMessage("info", message || "Processing...");
+      }
+    }
+
+    function applyConnectionState(connected) {
+      if (connected) {
+        statusIndicator.classList.add("connected");
+        connectionLabel.textContent = "Connected";
+        connectBtn.style.display = "none";
+        disconnectBtn.style.display = "inline-flex";
+        copyBtn.disabled = false;
+        registerBtn.disabled = false;
+        activateBtn.disabled = false;
+        deactivateBtn.disabled = false;
+        earnBtn.disabled = false;
+      } else {
+        statusIndicator.classList.remove("connected");
+        connectionLabel.textContent = "Disconnected";
+        connectBtn.style.display = "inline-flex";
+        disconnectBtn.style.display = "none";
+        walletAddressEl.textContent = "—";
+        networkNameEl.textContent = "—";
+        currentAccount = null;
+        contract = null;
+        copyBtn.disabled = true;
+        registerBtn.disabled = true;
+        activateBtn.disabled = true;
+        deactivateBtn.disabled = true;
+        earnBtn.disabled = true;
+        
+        registrationStatusEl.textContent = "Unregistered";
+        registrationStatusEl.className = "pill pill-inactive";
+        activeStatusEl.textContent = "Inactive";
+        activeStatusEl.className = "pill pill-inactive";
+        pointsNumberEl.textContent = "0";
+        tierLabelEl.textContent = "—";
+      }
+    }
+
+    async function fetchNetwork() {
+      if (!provider) return;
+      try {
+        const network = await provider.getNetwork();
+        const name = network.name === "unknown" ? `Chain ID ${network.chainId}` : network.name;
+        networkNameEl.textContent = name;
+        networkNameEl.style.color = "var(--text-primary)";
+      } catch {
+        networkNameEl.textContent = "Unknown";
+      }
+    }
+
+    async function fetchUserData() {
+      if (!contract || !currentAccount) return;
+      try {
+        const user = await contract.getUser(currentAccount);
+        const isRegistered = Boolean(user.isRegistered ?? user[0] ?? false);
+        const isActive = Boolean(user.isActive ?? user[1] ?? false);
+
+        let points = user.points ?? user[2] ?? 0;
+        try {
+          points = ethers.BigNumber.isBigNumber(points) ? points.toString() : String(points);
+        } catch {
+          points = String(points);
+        }
+
+        const tier = user.tier ?? user[3] ?? (typeof contract.getUserTier === "function" ? await contract.getUserTier() : 0);
+
+        if (isRegistered) {
+          registrationStatusEl.textContent = "Registered";
+          registrationStatusEl.className = "pill pill-active";
+        } else {
+          registrationStatusEl.textContent = "Unregistered";
+          registrationStatusEl.className = "pill pill-inactive";
+        }
+
+        if (isActive) {
+          activeStatusEl.textContent = "Active";
+          activeStatusEl.className = "pill pill-active";
+        } else {
+          activeStatusEl.textContent = "Inactive";
+          activeStatusEl.className = "pill pill-inactive";
+        }
+
+        pointsNumberEl.textContent = points;
+        tierLabelEl.textContent = tierToLabel(tier);
+
+        setMessage("success", "Data synchronized.");
+        setTimeout(() => setMessage(null, null), 3000);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function sendTransaction(actionName, txFunc) {
+      if (!contract || !signer || !currentAccount) return;
+      try {
+        setLoading(true, `Confirming ${actionName} in wallet...`);
+        const tx = await txFunc();
+        if (!tx || !tx.wait) {
+          setLoading(false);
+          setMessage("error", "Transaction could not be sent.");
+          return;
+        }
+        setMessage("info", "Transaction submitted. Waiting for confirmation...");
+        await tx.wait();
+        setMessage("success", `${actionName} successful.`);
+        await fetchUserData();
+      } catch (err) {
+        console.error(err);
+        const errorMsg = (err && err.data && err.data.message) || err.reason || err.message || "Transaction failed.";
+        setMessage("error", errorMsg);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        setMessage("error", "Please install MetaMask to use this app.");
+        return;
+      }
+      try {
+        setLoading(true, "Connecting...");
+        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        currentAccount = await signer.getAddress();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+        walletAddressEl.textContent = shortenAddress(currentAccount);
+        walletAddressEl.style.color = "var(--text-primary)";
+        applyConnectionState(true);
+
+        await fetchNetwork();
+        await fetchUserData();
+      } catch (err) {
+        console.error(err);
+        setMessage("error", "Failed to connect wallet.");
+        applyConnectionState(false);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function disconnectWallet() {
+      applyConnectionState(false);
+      setMessage("info", "Disconnected.");
+      setTimeout(() => setMessage(null, null), 3000);
+    }
+
+    connectBtn.addEventListener("click", connectWallet);
+    disconnectBtn.addEventListener("click", disconnectWallet);
+    
+    copyBtn.addEventListener("click", () => {
+      if (!currentAccount) return;
+      navigator.clipboard.writeText(currentAccount)
+        .then(() => {
+          setMessage("success", "Address copied.");
+          setTimeout(() => setMessage(null, null), 2000);
+        });
+    });
+
+    registerBtn.addEventListener("click", () => sendTransaction("Registration", () => contract.register()));
+    activateBtn.addEventListener("click", () => sendTransaction("Activation", () => contract.activate()));
+    deactivateBtn.addEventListener("click", () => sendTransaction("Deactivation", () => contract.deactivate()));
+    earnBtn.addEventListener("click", () => sendTransaction("Earning Points", () => contract.earnPoints()));
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        if (!accounts || accounts.length === 0) {
+          disconnectWallet();
+        } else {
+          connectWallet();
+        }
+      });
+      window.ethereum.on("chainChanged", () => window.location.reload());
+      
+      window.ethereum.request({ method: "eth_accounts" }).then((accounts) => {
+        if (accounts && accounts.length > 0) connectWallet();
+      });
+    }
+  </script>
+</body>
+</html>
